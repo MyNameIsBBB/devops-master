@@ -1,42 +1,49 @@
 ---
 name: devops-master
-description: Set up deployment for a project. Detects the tech stack, asks the user 10 deploy questions (numbered choices), then generates Dockerfile, compose.yaml, .env.example, optional CI/backup files, and devops/*.md docs.
+description: DevOps helper for any project. (1) Set up deployment: detect the stack, ask the user 11 deploy questions with numbered choices, then generate Dockerfile or Nixpacks build, compose.yaml, .env.example, optional CI/backup/Caddy files, and devops/*.md docs. (2) Answer DevOps questions (Docker, Compose, Dokploy, TLS, env/secrets, rollback, troubleshooting) using the local knowledge base.
 ---
 
 # devops-master
 
-Use this when the user asks to deploy a project, add Docker/Compose/CI, or write deploy docs.
+Use this skill when the user wants to deploy a project, add Docker/Compose/CI, write deploy docs, or asks a DevOps question.
+Run the CLI as `node /workspace/devops-master/bin/devops-master.mjs <command>`. Below, `DM` means that command.
 
-## Steps
+## A. Set up deployment
 
-1. **Detect the stack.** Run:
-   `node /workspace/devops-master/bin/devops-master.mjs detect --project <project-dir>`
-   Report the language, framework, package manager, and port in one or two lines.
-   If `notes` contains a warning, tell the user before asking questions.
+1. **Detect.** `DM detect --project <dir>`
+   Report language, framework, `strategy`, start/build commands and any `notes` in one or two lines.
+   - `template`: a Dockerfile is generated.
+   - `nixpacks`: no template fits; the image is built by Nixpacks (`scripts/build-nixpacks.sh`).
+   - `existing-dockerfile`: the repo's Dockerfile is kept unchanged.
+   If `startCmd` is missing or wrong, ask the user for it and pass `--start "CMD"` later.
 
-2. **Ask the 10 questions.** Get the list with
-   `node /workspace/devops-master/bin/devops-master.mjs questions`.
-   Show each question with its numbered choices, one message at a time or all together.
-   Let the user answer by number. Enter/empty means the first choice (or the default for free-text questions).
-   Do not invent answers. If the user does not know, use the default and say so.
+2. **Ask the 11 questions.** `DM questions` lists keys and choices.
+   Show them with numbers. One answer per key. Do not guess. If the user does not know, use the default and say so.
+   Keys: target, method, domain, port, proxy, db, secrets, ci, health, backup, rollback.
 
-3. **Write an answers file** (JSON, keys from `questions`), for example `/tmp/devops-answers.json`.
-   Do not put real secrets in it.
+3. **Write answers** to a JSON file (for example `/tmp/devops-answers.json`). Never put real secrets in it.
 
-4. **Generate files.** Dry run first, then write:
+4. **Generate.** Dry run first, then write:
    ```
-   node /workspace/devops-master/bin/devops-master.mjs init --project <project-dir> --answers /tmp/devops-answers.json --dry-run
-   node /workspace/devops-master/bin/devops-master.mjs init --project <project-dir> --answers /tmp/devops-answers.json
+   DM init --project <dir> --answers /tmp/devops-answers.json --dry-run
+   DM init --project <dir> --answers /tmp/devops-answers.json [--start "CMD"]
    ```
-   The CLI refuses to overwrite existing files. Use `--force` only if the user agrees.
+   The CLI refuses to overwrite files. Use `--force` only with the user's agreement. It never changes an existing Dockerfile.
 
-5. **Check the output.** Read the generated `compose.yaml` and `Dockerfile`. Make sure the port and health path match the app.
-   If the stack needs something the templates don't cover (for example Kubernetes manifests, or a custom start command), say so and ask.
+5. **Review.** Read `compose.yaml` and the Dockerfile. Check the port, health path and start command against the app.
 
-6. **Report.** List the files written. Point to `devops/README.md` as the index. State what was not verified (for example, no image was built and no deploy was run).
+6. **Report.** List the files written, the start with `devops/README.md`, and what was NOT verified. The sandbox often has no Docker, so the image was probably not built; say that.
+
+## B. Answer DevOps questions
+
+1. Run `DM ask "<the user's question>"`.
+2. If it prints entries, answer from them and cite the file (for example `kb/tls-domains.md`).
+3. If it prints `NO_MATCH`, answer from general knowledge and say that the local knowledge base had no entry.
+4. For a question about a specific project, run `DM detect` first, then answer.
 
 ## Rules
-- Never write real passwords, tokens or `.env` files. Only `.env.example` with `change-me` placeholders.
-- Never deploy to a live host without explicit user approval.
+- Never write real passwords, tokens, or `.env` files. Only `.env.example` with `change-me` placeholders.
+- Never deploy to a live host without the user's explicit approval.
 - Dokploy: follow `devops/deploy.md`. Do not SSH into the Proxmox host to deploy.
-- Keep the work inside the project folder.
+- Work only inside the current project folder.
+- For a secret that leaked into chat or git, say to rotate it. Do not just advise deleting the message.

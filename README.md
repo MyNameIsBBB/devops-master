@@ -3,8 +3,10 @@
 A small skill + CLI that teaches an AI agent to set up deployment for a project.
 
 1. **Detect** the tech stack (Node/Next/Vite, Python/FastAPI/Flask/Django, Go, static HTML).
-2. **Ask** 10 deploy questions with numbered choices (target, build method, domain, port, proxy, DB, secrets, CI, health check, backup, rollback). The agent asks; defaults apply if the user skips.
-3. **Generate** `Dockerfile`, `compose.yaml`, `.env.example`, Caddyfile / CI workflow / backup script when chosen, and `devops/*.md` docs.
+2. **Ask** 11 deploy questions with numbered choices (target, build method, domain, port, proxy, DB, secrets, CI, health check, backup, rollback). The agent asks; defaults apply if the user skips.
+3. **Build strategy**: keeps an existing Dockerfile; uses a template for Node, Python, Go, and static; falls back to Nixpacks for anything else.
+4. **Generate** `compose.yaml`, `.env.example`, Caddyfile / CI workflow / backup script when chosen, and `devops/*.md` docs.
+5. **Answer DevOps questions** with `ask`, searching the local knowledge base in `kb/`.
 
 No dependencies: Node 18+ only.
 
@@ -15,7 +17,8 @@ node bin/devops-master.mjs detect --project ./my-app
 node bin/devops-master.mjs questions
 node bin/devops-master.mjs init --project ./my-app            # interactive (TTY)
 node bin/devops-master.mjs init --project ./my-app --answers answers.json --dry-run
-sh test/run.sh                                                 # smoke tests
+node bin/devops-master.mjs ask "how do I rotate a leaked secret"
+NODE_PATH=/tmp/yv/node_modules sh test/run.sh                  # tests (YAML check needs js-yaml)
 ```
 
 The skill for the agent is in [`skills/devops-master/SKILL.md`](skills/devops-master/SKILL.md).
@@ -26,10 +29,13 @@ The skill for the agent is in [`skills/devops-master/SKILL.md`](skills/devops-ma
 - `lib/detect.mjs`: stack detection
 - `lib/questions.mjs`: the 10 questions and defaults
 - `lib/render.mjs`: file templates
+- `lib/kb.mjs`, `kb/*.md`: DevOps knowledge base for `ask`
 - `skills/devops-master/SKILL.md`: agent instructions
 - `test/`: fixtures and smoke test
 
-## Limits (v0)
-- No Kubernetes manifests yet (k8s target writes docs only).
-- Does not build images or deploy. Output is not tested against a live host.
-- Templates are a starting point; check `compose.yaml` and `Dockerfile` for each app.
+## Limits
+- No Kubernetes manifests (k8s target writes docs only).
+- Does not build images or deploy. Tests run in CI or on a machine with Docker; this sandbox has none.
+- Start command is inferred for FastAPI, Flask, Django and Node; otherwise pass `--start`.
+- Monorepos and multiple services in one folder are not handled.
+- `ask` is keyword search over `kb/`, not an LLM. Answers beyond the KB come from the agent's own knowledge.
