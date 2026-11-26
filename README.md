@@ -27,7 +27,7 @@ The skill for the agent is in [`skills/devops-master/SKILL.md`](skills/devops-ma
 
 - `bin/devops-master.mjs`: CLI (`detect`, `questions`, `init`)
 - `lib/detect.mjs`: stack detection
-- `lib/questions.mjs`: the 10 questions and defaults
+- `lib/questions.mjs`: the 11 questions and defaults
 - `lib/render.mjs`: file templates
 - `lib/kb.mjs`, `kb/*.md`: DevOps knowledge base for `ask`
 - `skills/devops-master/SKILL.md`: agent instructions
